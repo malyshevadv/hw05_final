@@ -1,0 +1,40 @@
+<!-- templates/posts/group_list.html --> 
+{% extends 'base.html' %}
+{% load thumbnail %}
+{% block title %}Записи сообщества {{ group.title }}{% endblock %} 
+{% block content %}
+  <div class="container py-5">
+    {% block header %}<h1>{{ group.title }}</h1>{% endblock %}
+    <p>{{ group.description }}</p>
+    </br>
+    {% for post in page_obj %}
+    <article>
+      <ul>
+	    <li>
+        Автор: 
+        {% if post.author.get_full_name != "" %} 
+            {{ post.author.get_full_name }} 
+          {% else %}
+            {{ post.author.username }} 
+          {% endif %}
+          <a href="{% url 'posts:profile' post.author.username %}">
+            все посты пользователя
+          </a>
+	    </li>
+	    <li>
+	      Дата публикации: {{ post.pub_date|date:"d E Y" }}
+	    </li>
+      </ul>
+      {% thumbnail post.image "960x139" crop="center" upscale=True as im %}
+        <img class="card-img my-2" src="{{ im.url }}">
+      {% endthumbnail %}
+      <p>{{ post.text }}</p>
+      <a href="{% url 'posts:post_detail' post.pk %}">подробная информация </a>
+      </br>
+      <a href="{% url 'posts:group_list' post.group.slug %}">все записи группы</a>
+      {% if not forloop.last %}<hr>{% endif %}
+    </article>
+    {% endfor %} 
+    {% include 'posts/includes/paginator.html' %}
+  </div>  
+{% endblock %}
