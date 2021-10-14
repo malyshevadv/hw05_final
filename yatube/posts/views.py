@@ -11,6 +11,8 @@ from django.views.generic.edit import CreateView, UpdateView
 from .forms import CommentForm, PostForm
 from .models import Follow, Group, Post
 
+User = get_user_model()
+
 
 def set_pagination(request, obj_list, amount=settings.PAGE_SIZE):
     paginator = Paginator(obj_list, amount)
@@ -48,19 +50,15 @@ def group_posts(request, slug):
 
 def profile(request, username):
     template = 'posts/profile.html'
-    author = get_user_model().objects.get(username=username)
+    author = User.objects.get(username=username)
 
     post_list = author.posts.all()
     page_obj = set_pagination(request, post_list)
 
+    is_following = False
     if request.user.is_authenticated:
-        try:
-            Follow.objects.get(user=request.user, author=author)
+        if Follow.objects.filter(user=request.user, author=author).exists():
             is_following = True
-        except Follow.DoesNotExist:
-            is_following = False
-    else:
-        is_following = False
 
     context = {
         'page_obj': page_obj,
@@ -74,8 +72,7 @@ def post_detail(request, post_id):
     template = 'posts/post_detail.html'
     specific_post = get_object_or_404(Post, pk=post_id)
 
-    post_list = specific_post.author.posts.all()
-    page_obj = set_pagination(request, post_list)
+    page_obj = specific_post.author.posts.all()
 
     comments_list = specific_post.comments.all()
     form = CommentForm()
@@ -104,12 +101,9 @@ def add_comment(request, post_id):
 def follow_index(request):
     template = 'posts/follow.html'
 
-    following_list = request.user.follower.values_list('author', flat=True)
-    post_list = Post.objects.filter(author__in=following_list)
-    if post_list.count() == 0:
-        no_follow = True
-    else:
-        no_follow = False
+    post_list = Post.objects.filter(author__following__user=request.user)
+    no_follow = (post_list.count() == 0)
+
     page_obj = set_pagination(request, post_list)
 
     context = {
@@ -121,25 +115,18 @@ def follow_index(request):
 
 @login_required
 def profile_follow(request, username):
-    author = get_user_model().objects.get(username=username)
-    if request.user.username != username:
-        try:
-            new_follow = Follow.objects.get(user=request.user, author=author)
-        except Follow.DoesNotExist:
-            new_follow = Follow.objects.create(
-                user=request.user, author=author)
-            new_follow.save()
+    author = get_object_or_404(User, username=username)
+    if request.user != author:
+        Follow.objects.get_or_create(user=request.user, author=author)
+
     return redirect('posts:profile', username=author)
 
 
 @login_required
 def profile_unfollow(request, username):
-    author = get_user_model().objects.get(username=username)
-    try:
-        unfollow = Follow.objects.get(user=request.user, author=author)
-        unfollow.delete()
-    except Follow.DoesNotExist:
-        pass
+    author = get_object_or_404(User, username=username)
+    Follow.objects.filter(user=request.user, author=author).delete()
+
     return redirect('posts:index')
 
 

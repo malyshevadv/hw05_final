@@ -11,7 +11,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from ..models import Group, Post
+from ..models import Follow, Group, Post
 
 User = get_user_model()
 
@@ -117,7 +117,7 @@ class ContextPaginatorViewsTest(TestCase):
         ]
 
         self.posts = []
-        for i in range(13):
+        for _ in range(13):
             self.posts.append(
                 Post.objects.create(
                     author=ContextPaginatorViewsTest.user,
@@ -261,24 +261,53 @@ class ContextPaginatorViewsTest(TestCase):
         self.assertIn(ContextPaginatorViewsTest.user.id,
                       new_user.follower.values_list('author', flat=True))
 
-        new_post = Post.objects.create(
-            author=ContextPaginatorViewsTest.user,
-            text='Тестовый текст!',
-            group=ContextPaginatorViewsTest.group,
-            image=ContextPaginatorViewsTest.uploaded,
+    def test_unscription(self):
+        new_user = User.objects.create_user(username='IAmNew')
+        new_client = Client()
+        new_client.force_login(new_user)
+
+        Follow.objects.create(
+            author=ContextPaginatorViewsTest.user, user=new_user
         )
-        self.posts.append(new_post)
+
+        new_client.get(reverse(
+            'posts:profile_unfollow', kwargs={'username': self.username}
+        ))
+        self.assertNotIn(ContextPaginatorViewsTest.user.id,
+                         new_user.follower.values_list('author', flat=True))
+
+    def test_check_for_post(self):
+        new_user = User.objects.create_user(username='IAmNew')
+        new_client = Client()
+        new_client.force_login(new_user)
+
+        Follow.objects.create(
+            author=ContextPaginatorViewsTest.user, user=new_user
+        )
+
+        post_to_check = self.posts[0]
+
+        response = new_client.get(
+            reverse('posts:follow_index')
+        )
+        self.assertIn(post_to_check, response.context['page_obj'])
+
+    def test_check_for_post(self):
+        new_user = User.objects.create_user(username='IAmNew')
+        new_client = Client()
+        new_client.force_login(new_user)
+
+        Follow.objects.create(
+            author=ContextPaginatorViewsTest.user, user=new_user
+        )
+
+        post_to_check = self.posts[0]
 
         new_user2 = User.objects.create_user(username='IAmNewer')
         new_client2 = Client()
         new_client2.force_login(new_user2)
 
-        response1 = new_client.get(
+        response = new_client2.get(
             reverse('posts:follow_index')
         )
-        self.assertIn(new_post, response1.context['page_obj'])
-
-        response2 = new_client2.get(
-            reverse('posts:follow_index')
-        )
-        self.assertNotIn(new_post, response2.context['page_obj'])
+        self.assertNotIn(post_to_check, response.context['page_obj'])

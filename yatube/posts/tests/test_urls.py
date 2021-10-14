@@ -16,7 +16,8 @@ class PostsURLTests(TestCase):
     def setUpClass(cls):
         super().setUpClass()
 
-        cls.user = User.objects.create_user(username='auth')
+        cls.username = 'auth'
+        cls.user = User.objects.create_user(username=cls.username)
         cls.group = Group.objects.create(
             title='Тестовая группа',
             slug='test_slug',
@@ -69,6 +70,19 @@ class PostsURLTests(TestCase):
                 response = self.authorized_client.get(address)
                 self.assertEqual(response.status_code, HTTPStatus.OK)
 
+    def test_authorized_comment_redirect(self):
+        response = self.authorized_client.get(
+            f'/posts/{PostsURLTests.post.pk}/comment',
+            follow=True
+        )
+        self.assertRedirects(
+            response,
+            reverse(
+                'posts:post_detail',
+                kwargs={'post_id': PostsURLTests.post.pk}
+            ),
+        )
+
     def test_author_accesible(self):
         """Проверка доступа к страницам авторизованным пользователем."""
         link_list = self.public_link_list
@@ -119,6 +133,33 @@ class PostsURLTests(TestCase):
             ),
         )
 
+    def test_authorized_redirect_on_follow(self):
+        """Страница по адресу /profile/{username}/follow/ перенаправит нa автора
+        на которого произведена подписка.
+        """
+        response = self.authorized_client.get(
+            f'/profile/{PostsURLTests.username}/follow', follow=True
+        )
+        self.assertRedirects(
+            response,
+            reverse(
+                'posts:profile',
+                kwargs={'username': PostsURLTests.username}
+            ),
+        )
+
+    def test_authorized_redirect_on_unfollow(self):
+        """Страница по адресу /profile/{username}/unfollow перенаправит на
+        главную страницу.
+        """
+        response = self.authorized_client.get(
+            f'/profile/{PostsURLTests.username}/unfollow', follow=True
+        )
+        self.assertRedirects(
+            response,
+            reverse('posts:index')
+        )
+
     def test_urls_uses_correct_template(self):
         """URL-адрес использует соответствующий шаблон."""
         # Шаблоны по адресам
@@ -130,6 +171,7 @@ class PostsURLTests(TestCase):
             f'/posts/{post_id}/': 'posts/post_detail.html',
             f'/posts/{post_id}/edit/': 'posts/create_post.html',
             '/create/': 'posts/create_post.html',
+            '/follow/': 'posts/follow.html',
         }
         for address, template in templates_url_names.items():
             with self.subTest(address=address):

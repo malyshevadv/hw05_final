@@ -207,7 +207,7 @@ class PostFormTests(TestCase):
         post_after = get_object_or_404(Post, pk=post_id)
         self.assertEqual(post_after.text, post_orig.text)
 
-    def test_add_comment(self):
+    def test_add_comment_guest(self):
         post_for_comment = Post.objects.first()
         post_id = post_for_comment.id
 
@@ -230,6 +230,15 @@ class PostFormTests(TestCase):
         )
         self.assertEqual(post_for_comment.comments.count(), comments_count)
 
+    def test_add_comment_authorized(self):
+        post_for_comment = Post.objects.first()
+        post_id = post_for_comment.id
+
+        comments_count = post_for_comment.comments.count()
+
+        form_data = {
+            'text': "Текст комментария",
+        }
         response = self.authorized_client.post(
             reverse('posts:add_comment', kwargs={'post_id': post_id}),
             data=form_data,
