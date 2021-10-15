@@ -1,5 +1,6 @@
 import shutil
 import tempfile
+from datetime import datetime
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -30,6 +31,31 @@ class PostFormTests(TestCase):
         cls.post = Post.objects.create(
             author=cls.user,
             text='Тестовый текст',
+        )
+        cls.small_gif = (
+            b'\x47\x49\x46\x38\x39\x61\x02\x00'
+            b'\x01\x00\x80\x00\x00\x00\x00\x00'
+            b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
+            b'\x00\x00\x00\x2C\x00\x00\x00\x00'
+            b'\x02\x00\x01\x00\x00\x02\x02\x0C'
+            b'\x0A\x00\x3B'
+        )
+        cls.uploaded = SimpleUploadedFile(
+            name='small.gif',
+            content=cls.small_gif,
+            content_type='image/gif'
+        )
+
+        cls.small_gif2 = (
+            b'\x47\x49\x46\x38\x39\x61\x02\x00'
+            b'\x01\x00\x80\x00\x00\x00\x00\x00'
+            b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
+            b'\x00\x00\x00\x2C\x00\x00\x00\x00'
+        )
+        cls.uploaded2 = SimpleUploadedFile(
+            name='small.gif',
+            content=cls.small_gif,
+            content_type='image/gif'
         )
 
     def setUp(self):
@@ -71,24 +97,10 @@ class PostFormTests(TestCase):
         """
         post_count = Post.objects.count()
 
-        small_gif = (
-            b'\x47\x49\x46\x38\x39\x61\x02\x00'
-            b'\x01\x00\x80\x00\x00\x00\x00\x00'
-            b'\xFF\xFF\xFF\x21\xF9\x04\x00\x00'
-            b'\x00\x00\x00\x2C\x00\x00\x00\x00'
-            b'\x02\x00\x01\x00\x00\x02\x02\x0C'
-            b'\x0A\x00\x3B'
-        )
-        uploaded = SimpleUploadedFile(
-            name='small.gif',
-            content=small_gif,
-            content_type='image/gif'
-        )
-
         form_data = {
             'text': 'Тестовый текст',
             'group': PostFormTests.group.id,
-            'image': uploaded,
+            'image': PostFormTests.uploaded,
         }
 
         response = self.authorized_client.post(
@@ -157,9 +169,11 @@ class PostFormTests(TestCase):
         произойти перенаправление на страницу поста
         """
         post_id = Post.objects.first().id
+
         form_data = {
-            'text': 'Тестовый текст 1',
-            'group': PostFormTests.group.id
+            'text': 'Тестовый текст 2',
+            'group': PostFormTests.group.id,
+            'image': PostFormTests.uploaded2,
         }
 
         response = self.authorized_client.post(
@@ -179,6 +193,12 @@ class PostFormTests(TestCase):
                 group=form_data['group']
             ).exists()
         )
+        post = get_object_or_404(Post, pk=post_id)
+        self.assertEqual(post.author, PostFormTests.user)
+        self.assertEqual(post.text, form_data['text'])
+        self.assertEqual(post.group.id, form_data['group'])
+        self.assertIsInstance(post.pub_date, datetime)
+        self.assertIsNotNone(post.image, form_data['image'])
 
     def test_guest_edit_post(self):
         """
@@ -189,7 +209,7 @@ class PostFormTests(TestCase):
         post_orig = Post.objects.first()
         post_id = post_orig.id
         form_data = {
-            'text': 'Тестовый текст 2',
+            'text': 'Тестовый текст 1',
             'group': PostFormTests.group.id
         }
 

@@ -55,10 +55,8 @@ def profile(request, username):
     post_list = author.posts.all()
     page_obj = set_pagination(request, post_list)
 
-    is_following = False
-    if request.user.is_authenticated:
-        if Follow.objects.filter(user=request.user, author=author).exists():
-            is_following = True
+    is_following = request.user.is_authenticated and Follow.objects.filter(
+        user=request.user, author=author).exists()
 
     context = {
         'page_obj': page_obj,
@@ -102,7 +100,7 @@ def follow_index(request):
     template = 'posts/follow.html'
 
     post_list = Post.objects.filter(author__following__user=request.user)
-    no_follow = (post_list.count() == 0)
+    no_follow = post_list.exists()
 
     page_obj = set_pagination(request, post_list)
 

@@ -260,6 +260,10 @@ class ContextPaginatorViewsTest(TestCase):
         ))
         self.assertIn(ContextPaginatorViewsTest.user.id,
                       new_user.follower.values_list('author', flat=True))
+        self.assertTrue(Follow.objects.filter(
+            user=new_user,
+            author=ContextPaginatorViewsTest.user
+        ).exists())
 
     def test_unscription(self):
         new_user = User.objects.create_user(username='IAmNew')
@@ -285,14 +289,26 @@ class ContextPaginatorViewsTest(TestCase):
             author=ContextPaginatorViewsTest.user, user=new_user
         )
 
-        post_to_check = self.posts[0]
+        post_to_check = Post.objects.create(
+            author=ContextPaginatorViewsTest.user,
+            text='Тестовый текст!',
+            group=ContextPaginatorViewsTest.group,
+            image=ContextPaginatorViewsTest.uploaded,
+        )
 
         response = new_client.get(
             reverse('posts:follow_index')
         )
         self.assertIn(post_to_check, response.context['page_obj'])
+        list = response.context['page_obj']
+        post = list[list.index(post_to_check)]
+        self.assertEqual(post.author, post_to_check.author)
+        self.assertEqual(post.text, post_to_check.text)
+        self.assertEqual(post.group.title, post_to_check.group.title)
+        self.assertIsInstance(post.pub_date, datetime)
+        self.assertIsNotNone(post.image)
 
-    def test_check_for_post(self):
+    def test_check_no_post(self):
         new_user = User.objects.create_user(username='IAmNew')
         new_client = Client()
         new_client.force_login(new_user)
@@ -301,7 +317,12 @@ class ContextPaginatorViewsTest(TestCase):
             author=ContextPaginatorViewsTest.user, user=new_user
         )
 
-        post_to_check = self.posts[0]
+        post_to_check = Post.objects.create(
+            author=ContextPaginatorViewsTest.user,
+            text='Тестовый текст!',
+            group=ContextPaginatorViewsTest.group,
+            image=ContextPaginatorViewsTest.uploaded,
+        )
 
         new_user2 = User.objects.create_user(username='IAmNewer')
         new_client2 = Client()
