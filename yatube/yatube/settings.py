@@ -25,7 +25,11 @@ SECRET_KEY = 'g0*(i#mp&7&v!#gx*y$$imw@oc2cx*i1e85qmus37yw(5vm-_o'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['testserver', '127.0.0.1', '[::1]', 'localhost']
+
+ALLOWED_HOSTS = [
+    'malyshevadv.pythonanywhere.com',
+    'www.malyshevadv.pythonanywhere.com',
+]
 
 
 # Application definition
